@@ -1,72 +1,13 @@
 
-class UNetConnection : public UPlayer
-{
-	
-};
-
-UCLASS (Abstract, CustomConstructor, Transient, MinimalAPI, Config=Engine)  
-class UNetDriver : public UObject, public FExec
-{
-	TArray<TObjectPtr<UNetConnection>> ClientConnections;
-	
-	TObjectPtr<UNetConnection> ServerConnection;
-
-
-	virtual bool InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error);
-
-	virtual bool InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool bReuseAddressAndPort, FString& Error);
-
-
-	void UNetDriver::PostInitProperties()
-	{
-		Super::PostInitProperties();
-
-		// By default we're the game net driver and any child ones must override this
-		NetDriverName = NAME_GameNetDriver;
-	}
-};
-
-UCLASS(transient, config = Engine)
-class WEBSOCKETNETWORKING_API UWebSocketNetDriver : public UNetDriver
-{
-
-};
-
-
-UCLASS(transient, config=Engine)
-class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
-{
-
-};
-
-UCLASS(transient, config=Engine)
-class ENGINE_API UDemoNetDriver : public UNetDriver
-{
-
-};
-
-USTRUCT()
-struct FNetDriverDefinition
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	FName DefName;
-
-	UPROPERTY()
-	FName DriverClassName;
-
-}
-
 class UGameEngine : public UEngine 
 {
+	TIndirectArray<FWorldContext> WorldList;
+
 	UPROPERTY(Config, transient)
 	TArray<FNetDriverDefinition> NetDriverDefinitions;
 
 	UPROPERTY(transient)
 	TArray<FNamedNetDriver> ActiveNetDrivers;
-
-
 
 	UNetDriver* CreateNetDriver_Local(UEngine* Engine, FWorldContext& Context, FName NetDriverDefinition, FName InNetDriverName)
 	{
@@ -78,6 +19,32 @@ class UGameEngine : public UEngine
 
 		return ReturnVal;
 	};
+
+
+	// CALL ON CLIENT TO CONNECT
+	virtual EBrowseReturnVal::Type Browse( FWorldContext& WorldContext, FURL URL, FString& Error )
+	{
+		WorldContext.PendingNetGame = NewObject<UPendingNetGame>();
+		WorldContext.PendingNetGame->Initialize(WorldContext.LastURL);
+		WorldContext.PendingNetGame->InitNetDriver();
+	}
+
+	// CALL ON SERVER TO START LISTEN 
+	// If has Listen option then starts listen
+	virtual bool LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error )
+	{
+		if (Pending == NULL && (!GIsClient || URL.HasOption(TEXT("Listen"))))
+		{
+			if (!WorldContext.World()->Listen(URL))
+			{
+				UE_LOG(LogNet, Error, TEXT("LoadMap: failed to Listen(%s)"), *URL.ToString());
+			}
+		}
+	}
+
+
+
+
 };
 
 
