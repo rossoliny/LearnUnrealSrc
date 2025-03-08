@@ -16,7 +16,7 @@ class ENGINE_API UChannel
 	void SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags)
 	{
 		Actor = InActor;
-		
+
 		if (Actor)
 		{
 			// Add to map.
@@ -33,7 +33,7 @@ class ENGINE_API UChannel
  */
 class ENGINE_API UActorChannel : public UChannel
 {
-
+	TMap<UObject*, TSharedRef<FObjectReplicator>> ReplicationMap;
 };
 
 /**
